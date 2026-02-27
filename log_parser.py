@@ -20,4 +20,12 @@ def parse_log(file):
             logs.append([ip, timestamp, method, url, status])
     
     df = pd.DataFrame(logs, columns=["IP", "Timestamp", "Method", "URL", "Status"])
+
+    # Convert Timestamp to datetime
+    df["Timestamp"] = pd.to_datetime(
+        df["Timestamp"],
+        format="%d/%b/%Y:%H:%M:%S",
+        errors="coerce"
+    )
+
     return df
