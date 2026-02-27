@@ -3,6 +3,27 @@ import pandas as pd
 from log_parser import parse_log
 from utils import detect_suspicious_activity
 from anomaly_detector import detect_anomalies
+# Simple Authentication Layer
+def check_login(username, password):
+    return username == "admin" and password == "secure123"
+
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+if not st.session_state.authenticated:
+    st.title("SOC Dashboard Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        if check_login(username, password):
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
+
+    st.stop()
 
 st.set_page_config(page_title="AI Threat Log Analyzer", layout="wide")
 
@@ -24,6 +45,15 @@ if uploaded_file is not None:
 
     suspicious_df = analyzed_df[analyzed_df["Suspicious"] == True]
     anomalous_ips = anomaly_results[anomaly_results["Anomaly"] == True]
+    # Escalation Logic: Correlate anomaly with severity
+    anomalous_ip_list = anomalous_ips.index.tolist()
+
+    def escalate_severity(row):
+        if row["IP"] in anomalous_ip_list and row["Severity"] in ["High", "Medium"]:
+            return "Critical"
+        return row["Severity"]
+
+    suspicious_df["Severity"] = suspicious_df.apply(escalate_severity, axis=1)
 
     risk_score = (len(suspicious_df) / len(df)) * 100
 
@@ -46,7 +76,14 @@ if uploaded_file is not None:
 
     # Suspicious Logs Section
     st.markdown("### Suspicious Log Entries")
-    st.dataframe(suspicious_df)
+    display_df = suspicious_df.sort_values(
+        by=["Severity"],
+        ascending=False
+    ).reset_index(drop=True)
+
+    display_df.index = display_df.index + 1  # Start numbering from 1
+
+    st.dataframe(display_df)
 
     st.download_button(
         label="Export Suspicious Logs",
